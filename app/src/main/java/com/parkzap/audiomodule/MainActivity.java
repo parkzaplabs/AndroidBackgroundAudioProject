@@ -8,23 +8,25 @@ import com.parkzap.library.audiomodule.AudioModule;
 
 public class MainActivity extends AppCompatActivity {
 
+    private AudioModule module;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        module = new AudioModule(this);
 
     }
 
 
     public void playMusic(View view) {
 
-        AudioModule module = new AudioModule(this);
-        module.playMusic();
+        module.playMusic(); //Service/Music is started
     }
 
     public void pauseMusic(View view) {
 
-        AudioModule module = new AudioModule(this);
-        module.pauseMusic();
+        module.pauseMusic();  //Service/Music is stopped
     }
 }
