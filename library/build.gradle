@@ -1,6 +1,5 @@
 apply plugin: 'com.android.library'
 apply plugin: 'com.github.dcendents.android-maven'
-version = '1.0'
 
 android {
     compileSdkVersion 26
