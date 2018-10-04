@@ -1,6 +1,10 @@
 apply plugin: 'com.android.library'
 apply plugin: 'com.github.dcendents.android-maven'
 
+// For reference of How to make Lib
+// https://www.youtube.com/watch?v=RYiZZprUNJw&t=384s
+// https://www.youtube.com/watch?v=koswODLeroM
+
 android {
     compileSdkVersion 26
     publishNonDefault true
