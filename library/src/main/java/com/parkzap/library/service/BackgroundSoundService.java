@@ -1,5 +1,6 @@
 package com.parkzap.library.service;
 
+import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -11,6 +12,9 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.media.MediaPlayer;
+import android.media.session.MediaController;
+import android.media.session.MediaSession;
+import android.media.session.MediaSessionManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.support.annotation.RequiresApi;
@@ -30,6 +34,21 @@ public class BackgroundSoundService extends Service {
     private final static String NOTIFICATION_CHANNEL_ID = "1";
     private static final String NOTIFICATION_CHANNEL_NAME = "webservice";
     private static final String TAG = "TAG";
+
+    /**
+     * Static string variables for media palayers actions
+     */
+    public static final String ACTION_PLAY = "action_play";
+    public static final String ACTION_PAUSE = "action_pause";
+    public static final String ACTION_REWIND = "action_rewind";
+    public static final String ACTION_FAST_FORWARD = "action_fast_foward";
+    public static final String ACTION_NEXT = "action_next";
+    public static final String ACTION_PREVIOUS = "action_previous";
+    public static final String ACTION_STOP = "action_stop";
+
+    private MediaSessionManager mManager;
+    private MediaSession mSession;
+    private MediaController mController;
     public static MediaPlayer mMediaPlayer;
 
     public IBinder onBind(Intent arg0) {
@@ -102,6 +121,69 @@ public class BackgroundSoundService extends Service {
 
     }
 
+    private void handleIntent(Intent intent) {
+        if (intent == null || intent.getAction() == null)
+            return;
+
+        String action = intent.getAction();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            if (action.equalsIgnoreCase(ACTION_PLAY)) {
+                mController.getTransportControls().play();
+            } else if (action.equalsIgnoreCase(ACTION_PAUSE)) {
+                mController.getTransportControls().pause();
+            } else if (action.equalsIgnoreCase(ACTION_FAST_FORWARD)) {
+                mController.getTransportControls().fastForward();
+            } else if (action.equalsIgnoreCase(ACTION_REWIND)) {
+                mController.getTransportControls().rewind();
+            } else if (action.equalsIgnoreCase(ACTION_PREVIOUS)) {
+                mController.getTransportControls().skipToPrevious();
+            } else if (action.equalsIgnoreCase(ACTION_NEXT)) {
+                mController.getTransportControls().skipToNext();
+            } else if (action.equalsIgnoreCase(ACTION_STOP)) {
+                mController.getTransportControls().stop();
+            }
+        }
+
+
+    }
+
+
+    @TargetApi(Build.VERSION_CODES.KITKAT_WATCH)
+    private Notification.Action generateAction(int icon, String title, String intentAction) {
+        Intent intent = new Intent(getApplicationContext(), BackgroundSoundService.class);
+        intent.setAction(intentAction);
+        PendingIntent pendingIntent = PendingIntent.getService(getApplicationContext(), 1, intent, 0);
+        return new Notification.Action.Builder(icon, title, pendingIntent).build();
+    }
+
+
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    private void buildNotification(Notification.Action action ) {
+        Notification.MediaStyle style = new Notification.MediaStyle();
+
+        Intent intent = new Intent( getApplicationContext(), BackgroundSoundService.class );
+        intent.setAction( ACTION_STOP );
+        PendingIntent pendingIntent = PendingIntent.getService(getApplicationContext(), 1, intent, 0);
+        Notification.Builder builder = new Notification.Builder( this )
+                .setSmallIcon(R.drawable.ic_stop)
+                .setContentTitle( "Media Title" )
+                .setContentText( "Media Artist" )
+                .setDeleteIntent( pendingIntent )
+                .setStyle(style);
+
+        builder.addAction( generateAction( android.R.drawable.ic_media_previous, "Previous", ACTION_PREVIOUS ) );
+        builder.addAction( generateAction( android.R.drawable.ic_media_rew, "Rewind", ACTION_REWIND ) );
+        builder.addAction( action );
+        builder.addAction( generateAction( android.R.drawable.ic_media_ff, "Fast Foward", ACTION_FAST_FORWARD ) );
+        builder.addAction( generateAction( android.R.drawable.ic_media_next, "Next", ACTION_NEXT ) );
+        style.setShowActionsInCompactView(0,1,2,3,4);
+
+        NotificationManager notificationManager = (NotificationManager) getSystemService( Context.NOTIFICATION_SERVICE );
+        notificationManager.notify( 1, builder.build() );
+    }
+
+
     @Override
     public void onStart(Intent intent, int startId) {
         // TO DO
@@ -126,80 +208,6 @@ public class BackgroundSoundService extends Service {
 
     }
 
-    private void startForegroundService() {
-        Log.d("TAG_FOREGROUND_SERVICE", "Start foreground service.");
-
-        mMediaPlayer.start(); // Starts MediaPlayer
-
-        // Create notification default intent.
-        Intent intent = new Intent();
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
-
-        // Create notification builder.
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
-
-        // Make notification show big text.
-        NotificationCompat.BigTextStyle bigTextStyle = new NotificationCompat.BigTextStyle();
-        bigTextStyle.setBigContentTitle("Music player implemented by foreground service.");
-        bigTextStyle.bigText("Android foreground service is a android service which can run in foreground always, it can be controlled by user via notification.");
-        // Set big text style.
-        builder.setStyle(bigTextStyle);
-
-        builder.setWhen(System.currentTimeMillis());
-//        builder.setSmallIcon(R.mipmap.ic_launcher);
-//        Bitmap largeIconBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.icon_music_32);
-//        builder.setLargeIcon(largeIconBitmap);
-
-        // Make the notification max priority.
-        builder.setPriority(Notification.PRIORITY_MAX);
-        // Make head-up notification.
-        builder.setFullScreenIntent(pendingIntent, true);
-
-        // Add Play button intent in notification.
-        Intent playIntent = new Intent(this, BackgroundSoundService.class);
-        playIntent.setAction("ACTION_PAUSE");
-        PendingIntent pendingPlayIntent = PendingIntent.getService(this, 0, playIntent, 0);
-        NotificationCompat.Action playAction = new NotificationCompat.Action(android.R.drawable.ic_media_play, "Play", pendingPlayIntent);
-        builder.addAction(playAction);
-
-        // Add Pause button intent in notification.
-        Intent pauseIntent = new Intent(this, BackgroundSoundService.class);
-        pauseIntent.setAction("ACTION_PAUSE");
-        PendingIntent pendingPrevIntent = PendingIntent.getService(this, 0, pauseIntent, 0);
-        NotificationCompat.Action prevAction = new NotificationCompat.Action(android.R.drawable.ic_media_pause, "Pause", pendingPrevIntent);
-        builder.addAction(prevAction);
-
-        // Build the notification.
-        Notification notification = builder.build();
-
-        // Start foreground service
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            startMyOwnForeground();
-        else
-            startForeground(1, notification);
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    private void startMyOwnForeground() {
-
-        String NOTIFICATION_CHANNEL_ID = "com.parkzap.library.service";
-        String channelName = "My Background Service";
-        NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
-        chan.setLightColor(Color.BLUE);
-        chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
-        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        assert manager != null;
-        manager.createNotificationChannel(chan);
-
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
-        Notification notification = notificationBuilder.setOngoing(true)
-                .setContentTitle("App is running in background")
-                .setPriority(NotificationManager.IMPORTANCE_MIN)
-                .setCategory(Notification.CATEGORY_SERVICE)
-                .build();
-        startForeground(2, notification);
-    }
 
     private Class getLauncherActivityClass() {
         Class obj = null;
